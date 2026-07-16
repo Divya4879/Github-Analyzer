@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Results — GitHub Analyzer</title>
+  <script src="/static/theme.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <link rel="stylesheet" href="/static/shared.css"/>
+  <style>
+    .page { max-width: 860px; margin: 0 auto; padding: 6rem 1.5rem 6rem; }
+
+    .page-header {
+      display: flex; align-items: flex-start;
+      justify-content: space-between; gap: 1rem;
+      margin-bottom: 2.5rem; flex-wrap: wrap;
+    }
+    .page-header h1 {
+      font-size: 1.625rem; font-weight: 700;
+      letter-spacing: -0.035em; margin-bottom: 0.3rem;
+    }
+    .page-header p { font-size: 0.875rem; color: var(--text-3); }
+    .page-header-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+    .score-card {
+      background: var(--bg-2);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+    }
+    .score-card-title {
+      font-size: 0.72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-4); margin-bottom: 1rem;
+    }
+    .score-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 0.75rem;
+    }
+    .score-item { display: flex; flex-direction: column; gap: 0.3rem; }
+    .score-item-header { display: flex; justify-content: space-between; align-items: center; }
+    .score-item-name { font-size: 0.8rem; color: var(--text-2); font-weight: 500; }
+    .score-item-val {
+      font-size: 0.8rem; font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-2);
+    }
+    .score-bar-track { height: 5px; background: var(--bg-3); border-radius: 3px; overflow: hidden; }
+    .score-bar-fill {
+      height: 100%; border-radius: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-3));
+      transition: width 0.8s cubic-bezier(0.4,0,0.2,1);
+    }
+    .score-bar-fill.low  { background: linear-gradient(90deg, var(--red), #f97316); }
+    .score-bar-fill.mid  { background: linear-gradient(90deg, var(--amber), #84cc16); }
+    .score-bar-fill.high { background: linear-gradient(90deg, var(--green), var(--accent-3)); }
+
+    .tags-row { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .tag-strength { font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 20px; background: var(--green-dim); border: 1px solid var(--green); color: var(--green); }
+    .tag-redflag  { font-size: 0.75rem; padding: 0.25rem 0.7rem; border-radius: 20px; background: var(--red-dim);   border: 1px solid var(--red);   color: var(--red); }
+
+    /* Profile hero */
+    .profile-hero {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 2.5rem 1.5rem 2rem;
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      margin-bottom: 2rem;
+    }
+    .profile-hero img {
+      width: clamp(80px, 15vw, 120px);
+      height: clamp(80px, 15vw, 120px);
+      border-radius: 50%;
+      border: 3px solid var(--border-2);
+      box-shadow: 0 0 0 6px var(--accent-dim);
+      margin-bottom: 1.25rem;
+    }
+    .profile-hero-name {
+      font-size: 1.25rem; font-weight: 700;
+      letter-spacing: -0.03em; margin-bottom: 0.2rem;
+    }
+    .profile-hero-handle { font-size: 0.875rem; color: var(--text-3); margin-bottom: 0.5rem; }
+    .profile-hero-bio { font-size: 0.85rem; color: var(--text-2); max-width: 420px; line-height: 1.6; margin-bottom: 1rem; }
+    .profile-hero-stats {
+      display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;
+    }
+    .profile-hero-stat { font-size: 0.8rem; color: var(--text-3); }
+    .profile-hero-stat strong { color: var(--text-1); font-weight: 600; display: block; font-size: 1rem; }
+
+    /* Developer profile assessment */
+    .dev-profile {
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      margin-bottom: 2rem;
+      overflow: hidden;
+    }
+    .dev-profile-header {
+      padding: 1.125rem 1.5rem;
+      border-bottom: 1px solid var(--border-1);
+      display: flex; align-items: center; gap: 0.75rem;
+      background: var(--bg-2);
+    }
+    .dev-profile-header h2 {
+      font-size: 0.95rem; font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .dev-profile-body { padding: 1.625rem 1.5rem; }
+
+    /* Repo result cards */
+    .repo-result {
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+      transition: border-color 0.15s;
+    }
+    .repo-result:hover { border-color: var(--border-2); }
+
+    .repo-result-header {
+      padding: 1rem 1.5rem;
+      display: flex; justify-content: space-between;
+      align-items: center; cursor: pointer;
+      transition: background 0.15s; gap: 1rem;
+      user-select: none;
+    }
+    .repo-result-header:hover { background: var(--bg-2); }
+
+    .repo-result-title {
+      font-size: 0.875rem; font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .repo-result-right { display: flex; align-items: center; gap: 1.25rem; flex-shrink: 0; }
+    .repo-stats { display: flex; gap: 1rem; font-size: 0.77rem; color: var(--text-3); }
+
+    .chevron {
+      color: var(--text-4); font-size: 0.65rem;
+      transition: transform 0.2s cubic-bezier(0.4,0,0.2,1);
+    }
+    .chevron.open { transform: rotate(180deg); }
+
+    .repo-result-body {
+      display: none;
+      padding: 0 1.5rem 1.625rem;
+      border-top: 1px solid var(--border-1);
+    }
+    .repo-result-body.open { display: block; }
+
+    .lang-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; padding: 1.125rem 0 1.25rem; }
+    .lang-tag {
+      font-size: 0.73rem; font-weight: 500;
+      padding: 0.2rem 0.65rem; border-radius: 20px;
+      background: var(--bg-3); border: 1px solid var(--border-2);
+      color: var(--text-2); letter-spacing: -0.01em;
+    }
+
+    @media (max-width: 768px) {
+      .profile-hero img { width: 96px; height: 96px; }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 5rem 1rem 4rem; }
+      .page-header { flex-direction: column; gap: 0.75rem; }
+      .page-header h1 { font-size: 1.25rem; }
+      .page-header .btn { width: 100%; text-align: center; }
+      .profile-hero { padding: 2rem 1rem 1.5rem; }
+      .profile-hero img { width: 80px; height: 80px; }
+      .profile-hero-name { font-size: 1.1rem; }
+      .profile-hero-stats { gap: 1.25rem; }
+      .repo-result-header { padding: 0.875rem 1rem; }
+      .repo-result-body { padding: 0 1rem 1.25rem; }
+      .repo-stats { display: none; }
+      .dev-profile-header { padding: 1rem; }
+      .dev-profile-body { padding: 1.25rem 1rem; }
+    }
+
+    @media (max-width: 480px) {
+      .profile-hero-stats { gap: 1rem; }
+      .lang-tags { gap: 0.3rem; }
+    }
+
+    /* ── Share card ── */
+    .share-section {
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    .share-section-header {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border-1);
+      background: var(--bg-2);
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+    }
+    .share-section-header div h3 { font-size: 0.875rem; font-weight: 600; margin-bottom: 0.15rem; }
+    .share-section-header div p { font-size: 0.78rem; color: var(--text-3); }
+    .share-preview { padding: 1.5rem; display: flex; justify-content: center; background: #020b18; overflow-x: auto; }
+
+    /* Card itself — always dark for consistent PNG output */
+    #share-card {
+      width: 680px;
+      min-width: 680px;
+      padding: 2rem 2.25rem 1.75rem;
+      background: #020b18;
+      border: 1px solid #1a3050;
+      border-radius: 16px;
+      font-family: 'Inter', sans-serif;
+      box-sizing: border-box;
+    }
+    /* Header */
+    .sc-top { display: flex; align-items: center; gap: 1.25rem; margin-bottom: 1.5rem; padding-bottom: 1.5rem; border-bottom: 1px solid #1a3050; }
+    .sc-avatar { width: 72px; height: 72px; border-radius: 50%; border: 2px solid #1e3a60; flex-shrink: 0; box-shadow: 0 0 0 5px rgba(59,130,246,0.1); }
+    .sc-name { font-size: 1.2rem; font-weight: 700; color: #e8f0fe; letter-spacing: -0.03em; }
+    .sc-handle { font-size: 0.82rem; color: #6a90c0; margin-top: 0.15rem; }
+    .sc-bio { font-size: 0.75rem; color: #4a7090; margin-top: 0.3rem; max-width: 420px; line-height: 1.4; }
+    .sc-badge { display: inline-block; margin-top: 0.4rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.18rem 0.55rem; border-radius: 20px; background: rgba(59,130,246,0.12); border: 1px solid rgba(59,130,246,0.3); color: #60a5fa; }
+    .sc-meta { margin-left: auto; text-align: right; flex-shrink: 0; }
+    .sc-meta-stat { font-size: 0.72rem; color: #3d6090; line-height: 1.8; }
+    .sc-meta-stat strong { color: #6a90c0; }
+    /* Section label */
+    .sc-section-label { font-size: 0.6rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: #254870; margin-bottom: 0.625rem; }
+    /* Scores grid */
+    .sc-scores { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; margin-bottom: 1.25rem; }
+    .sc-score-item { background: #0a1a30; border: 1px solid #1a3050; border-radius: 8px; padding: 0.65rem 0.4rem; text-align: center; }
+    .sc-score-val { font-size: 1.35rem; font-weight: 800; line-height: 1; }
+    .sc-score-val.high { color: #34d399; }
+    .sc-score-val.mid  { color: #fbbf24; }
+    .sc-score-val.low  { color: #f87171; }
+    .sc-score-label { font-size: 0.58rem; color: #3d6090; margin-top: 0.2rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    /* Divider */
+    .sc-divider { height: 1px; background: #1a3050; margin: 1.125rem 0; }
+    /* Strengths / weaknesses */
+    .sc-points-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.3rem 1.5rem; margin-bottom: 1.25rem; }
+    .sc-point { font-size: 0.75rem; color: #a8c0e8; display: flex; align-items: flex-start; gap: 0.4rem; line-height: 1.4; }
+    .sc-point-icon { flex-shrink: 0; font-size: 0.68rem; margin-top: 0.1rem; }
+    .sc-point-icon.green { color: #34d399; }
+    .sc-point-icon.red   { color: #f87171; }
+    /* Repo rows */
+    .sc-repos { display: flex; flex-direction: column; gap: 0.4rem; margin-bottom: 1.25rem; }
+    .sc-repo-row { display: flex; align-items: center; justify-content: space-between; background: #0a1a30; border: 1px solid #1a3050; border-radius: 6px; padding: 0.5rem 0.75rem; }
+    .sc-repo-name { font-size: 0.75rem; color: #a8c0e8; font-weight: 500; }
+    .sc-repo-scores { display: flex; gap: 0.75rem; }
+    .sc-repo-score { font-size: 0.68rem; color: #3d6090; }
+    .sc-repo-score span { font-weight: 700; color: #60a5fa; }
+    /* Footer */
+    .sc-footer { display: flex; align-items: center; justify-content: space-between; padding-top: 1rem; border-top: 1px solid #1a3050; }
+    .sc-brand { font-size: 0.75rem; font-weight: 700; color: #254870; }
+    .sc-url { font-size: 0.65rem; color: #1a3050; font-family: 'JetBrains Mono', monospace; }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">
+      <div class="nav-logo-mark">G</div>
+      GitHub Analyzer
+    </a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyze">Analyze</a>
+        <a href="/compare">Compare</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    </div>
+  </nav>
+
+  <div class="page page-enter">
+    <div class="page-header">
+      <div>
+        <h1 id="page-title">Analysis Results</h1>
+        <p id="page-sub">AI-powered assessment across all selected repositories</p>
+      </div>
+      <div class="page-header-actions">
+        <button class="btn btn-ghost" onclick="copyResults()">Copy JSON</button>
+        <a href="/compare" class="btn btn-ghost">Compare</a>
+        <a href="/analyze" class="btn btn-ghost">New Analysis</a>
+      </div>
+    </div>
+
+    <div class="profile-hero" id="profile-hero"></div>
+
+    <div class="share-section" id="share-section" style="display:none">
+      <div class="share-section-header">
+        <div>
+          <h3>Shareable Card</h3>
+          <p>Save as PNG and share on social media</p>
+        </div>
+        <button class="btn btn-primary" onclick="downloadCard()">Download PNG</button>
+      </div>
+      <div class="share-preview">
+        <div id="share-card"></div>
+      </div>
+    </div>
+
+    <div id="dev-profile-container"></div>
+    <p class="section-label" id="repos-label">Repository Assessments</p>
+    <div id="repo-results"></div>
+  </div>
+
+  <script>
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    function renderMarkdown(text) {
+      if (!text) return '';
+      const lines = text.split('\n');
+      let html = '', inList = false, inOl = false, inPre = false, preBuffer = '';
+      for (let raw of lines) {
+        const line = raw.trimStart(); // handle indented bullets
+        if (line.startsWith('```')) {
+          if (!inPre) { inPre = true; preBuffer = ''; continue; }
+          else { html += `<pre><code>${esc(preBuffer.trimEnd())}</code></pre>`; inPre = false; preBuffer = ''; continue; }
+        }
+        if (inPre) { preBuffer += raw + '\n'; continue; }
+        const isBullet = /^[\*\-\+] /.test(line);
+        const isOl     = /^\d+\. /.test(line);
+        if (inList && !isBullet) { html += '</ul>'; inList = false; }
+        if (inOl   && !isOl)    { html += '</ol>'; inOl   = false; }
+        if      (line.startsWith('#### ')) html += `<h3>${inl(line.slice(5))}</h3>`;
+        else if (line.startsWith('### '))  html += `<h3>${inl(line.slice(4))}</h3>`;
+        else if (line.startsWith('## '))   html += `<h2>${inl(line.slice(3))}</h2>`;
+        else if (line.startsWith('# '))    html += `<h1>${inl(line.slice(2))}</h1>`;
+        else if (line.startsWith('---'))   html += '<hr>';
+        else if (line.startsWith('> '))    html += `<blockquote>${inl(line.slice(2))}</blockquote>`;
+        else if (isBullet) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${inl(line.slice(2))}</li>`; }
+        else if (isOl)     { if (!inOl)   { html += '<ol>'; inOl   = true; } html += `<li>${inl(line.replace(/^\d+\. /,''))}</li>`; }
+        else if (line.trim()) html += `<p>${inl(line)}</p>`;
+      }
+      if (inList) html += '</ul>';
+      if (inOl)   html += '</ol>';
+      return html;
+    }
+
+    function inl(t) {
+      return esc(t)
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+        .replace(/__([^_]+)__/g, '<strong>$1</strong>')
+        .replace(/_([^_\n]+)_/g, '<em>$1</em>');
+    }
+
+    function toggleResult(header) {
+      header.nextElementSibling.classList.toggle('open');
+      header.querySelector('.chevron').classList.toggle('open');
+    }
+
+    function scoreColor(v) {
+      if (v >= 7) return 'high';
+      if (v >= 4) return 'mid';
+      return 'low';
+    }
+
+    function renderScoreCard(scores) {
+      if (!scores || !Object.keys(scores).length) return '';
+      const LABELS = {
+        code_quality: 'Code Quality', engineering_practices: 'Engineering',
+        test_coverage: 'Test Coverage', documentation: 'Documentation',
+        complexity: 'Complexity', security: 'Security',
+        architecture: 'Architecture', overall: 'Overall Score'
+      };
+      const items = Object.entries(scores)
+        .filter(([k]) => k !== 'overall')
+        .map(([k, v]) => `
+          <div class="score-item">
+            <div class="score-item-header">
+              <span class="score-item-name">${LABELS[k] || k}</span>
+              <span class="score-item-val">${v}/10</span>
+            </div>
+            <div class="score-bar-track">
+              <div class="score-bar-fill ${scoreColor(v)}" style="width:${v * 10}%"></div>
+            </div>
+          </div>`).join('');
+      const overall = scores.overall;
+      return `
+        <div class="score-card">
+          <div class="score-card-title">Assessment Scores ${overall ? `· Overall: ${overall}/10` : ''}</div>
+          <div class="score-grid">${items}</div>
+        </div>`;
+    }
+
+    function renderTagsRow(strengths, redFlags) {
+      if (!strengths?.length && !redFlags?.length) return '';
+      const s = (strengths || []).map(t => `<span class="tag-strength">✓ ${esc(t)}</span>`).join('');
+      const r = (redFlags || []).map(t => `<span class="tag-redflag">⚠ ${esc(t)}</span>`).join('');
+      return `<div class="tags-row">${s}${r}</div>`;
+    }
+
+    function renderDevProfile(profile) {
+      if (!profile || !Object.keys(profile).length) return '';
+      const scores = profile.overall_score ? {overall: profile.overall_score} : {};
+      return `
+        <div class="dev-profile">
+          <div class="dev-profile-header">
+            <span class="badge">Developer Profile</span>
+            <h2 id="dev-profile-name"></h2>
+            ${profile.maturity_level ? `<span class="badge" style="background:var(--green-dim);color:var(--green);border-color:var(--green)">${esc(profile.maturity_level)}</span>` : ''}
+          </div>
+          <div class="dev-profile-body">
+            ${profile.summary ? `<p style="font-size:0.95rem;color:var(--text-2);margin-bottom:1.25rem;line-height:1.75">${esc(profile.summary)}</p>` : ''}
+            ${profile.overall_score ? `<div class="score-card" style="margin-bottom:1.25rem"><div class="score-card-title">Overall Developer Score</div><div class="score-item"><div class="score-item-header"><span class="score-item-name">Score</span><span class="score-item-val">${profile.overall_score}/10</span></div><div class="score-bar-track"><div class="score-bar-fill ${scoreColor(profile.overall_score)}" style="width:${profile.overall_score*10}%"></div></div></div></div>` : ''}
+            ${renderTagsRow(profile.strengths, profile.weaknesses)}
+            ${profile.most_impressive_repo ? `<p style="font-size:0.82rem;color:var(--text-3);margin-top:0.75rem">Most impressive: <strong style="color:var(--text-2)">${esc(profile.most_impressive_repo)}</strong> — ${esc(profile.most_impressive_reason || '')}</p>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function copyResults() {
+      const raw = sessionStorage.getItem('analysisResults');
+      if (!raw) return;
+      navigator.clipboard.writeText(raw).then(() => {
+        const btn = document.querySelector('[onclick="copyResults()"]');
+        btn.textContent = 'Copied!';
+        setTimeout(() => { btn.textContent = 'Copy JSON'; }, 2000);
+      });
+    }
+
+    const raw = sessionStorage.getItem('analysisResults');
+    if (!raw) { window.location.href = '/analyze'; }
+    else {
+      const data = JSON.parse(raw);
+      const repoCount = Object.keys(data.repo_assessments).length;
+      document.getElementById('page-title').textContent = `Results for ${data.username}`;
+      document.getElementById('page-sub').textContent = `${repoCount} repositor${repoCount !== 1 ? 'ies' : 'y'} analyzed`;
+
+      // Profile hero
+      const u = data.user_info || {};
+      document.getElementById('profile-hero').innerHTML = `
+        ${u.avatar_url ? `<img src="${esc(u.avatar_url)}" alt="${esc(data.username)}"/>` : ''}
+        <div class="profile-hero-name">${esc(u.name || data.username)}</div>
+        <div class="profile-hero-handle">@${esc(data.username)}${u.company ? ' · ' + esc(u.company) : ''}</div>
+        ${u.bio ? `<div class="profile-hero-bio">${esc(u.bio)}</div>` : ''}
+        <div class="profile-hero-stats">
+          ${u.public_repos != null ? `<div class="profile-hero-stat"><strong>${u.public_repos}</strong>Repositories</div>` : ''}
+          ${u.followers != null ? `<div class="profile-hero-stat"><strong>${u.followers}</strong>Followers</div>` : ''}
+          ${u.location ? `<div class="profile-hero-stat"><strong>${esc(u.location)}</strong>Location</div>` : ''}
+        </div>`;
+
+      // Developer profile
+      document.getElementById('dev-profile-container').innerHTML = renderDevProfile(data.developer_profile);
+      const nameEl = document.getElementById('dev-profile-name');
+      if (nameEl) nameEl.textContent = data.username;
+
+      // Repo assessments
+      document.getElementById('repo-results').innerHTML = Object.entries(data.repo_assessments).map(([repo, assessment]) => {
+        const meta = data.repo_metadata[repo] || {};
+        const langs = Object.keys(meta.languages || {}).map(l => `<span class="lang-tag">${esc(l)}</span>`).join('');
+        const scores = assessment.scores || {};
+        const summary = assessment.summary || '';
+        const fullAssessment = assessment.assessment || '';
+        return `
+          <div class="repo-result">
+            <div class="repo-result-header" onclick="toggleResult(this)">
+              <div class="repo-result-title">${esc(repo)}</div>
+              <div class="repo-result-right">
+                <div class="repo-stats">
+                  <span>${meta.file_count || 0} files</span>
+                  <span>${(meta.total_loc || 0).toLocaleString()} lines</span>
+                  <span>★ ${meta.stars || 0}</span>
+                  ${scores.overall ? `<span style="color:var(--accent-2);font-weight:600">${scores.overall}/10</span>` : ''}
+                </div>
+                <span class="chevron">▼</span>
+              </div>
+            </div>
+            <div class="repo-result-body">
+              ${langs ? `<div class="lang-tags">${langs}</div>` : ''}
+              ${summary ? `<p style="font-size:0.9rem;color:var(--text-2);margin-bottom:1.25rem;line-height:1.7">${esc(summary)}</p>` : ''}
+              ${renderScoreCard(scores)}
+              ${renderTagsRow(assessment.strengths, assessment.red_flags)}
+              ${fullAssessment ? `<div class="md" style="margin-top:1.25rem">${renderMarkdown(fullAssessment)}</div>` : ''}
+            </div>
+          </div>`;
+      }).join('');
+
+      // Build share card
+      buildShareCard(data);
+    }
+
+    function scScoreClass(v) {
+      if (v >= 7) return 'high';
+      if (v >= 4) return 'mid';
+      return 'low';
+    }
+
+    function buildShareCard(data) {
+      const u = data.user_info || {};
+      const profile = data.developer_profile || {};
+
+      // Aggregate avg scores across all repos
+      const allScores = {};
+      Object.values(data.repo_assessments).forEach(a => {
+        Object.entries(a.scores || {}).forEach(([k, v]) => {
+          if (!allScores[k]) allScores[k] = [];
+          allScores[k].push(v);
+        });
+      });
+      const avg = {};
+      Object.entries(allScores).forEach(([k, vals]) => {
+        avg[k] = Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10;
+      });
+
+      const ALL_SCORE_KEYS = [
+        ['overall','Overall'], ['code_quality','Code Quality'], ['architecture','Architecture'],
+        ['security','Security'], ['engineering_practices','Engineering'], ['test_coverage','Tests'],
+        ['documentation','Docs'], ['complexity','Complexity']
+      ];
+
+      const scoreItems = ALL_SCORE_KEYS
+        .filter(([k]) => avg[k] != null)
+        .map(([k, label]) => `
+          <div class="sc-score-item">
+            <div class="sc-score-val ${scScoreClass(avg[k])}">${avg[k]}</div>
+            <div class="sc-score-label">${label}</div>
+          </div>`).join('');
+
+      const strengths = (profile.strengths || []).slice(0, 4);
+      const weaknesses = (profile.weaknesses || []).slice(0, 4);
+      const allPoints = [
+        ...strengths.map(s => `<div class="sc-point"><span class="sc-point-icon green">✓</span>${esc(s)}</div>`),
+        ...weaknesses.map(w => `<div class="sc-point"><span class="sc-point-icon red">⚠</span>${esc(w)}</div>`),
+      ].join('');
+
+      const repoRows = Object.entries(data.repo_assessments).map(([repo, a]) => {
+        const s = a.scores || {};
+        const repoName = repo.split('/')[1] || repo;
+        const scoreChips = Object.entries(s)
+          .filter(([k]) => k !== 'overall')
+          .slice(0, 4)
+          .map(([k, v]) => `<span class="sc-repo-score">${k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()).replace('Code Quality','Code').replace('Engineering Practices','Eng').replace('Test Coverage','Tests')}: <span>${v}</span></span>`)
+          .join('');
+        return `
+          <div class="sc-repo-row">
+            <span class="sc-repo-name">${esc(repoName)}</span>
+            <div class="sc-repo-scores">
+              ${s.overall != null ? `<span class="sc-repo-score">Overall: <span style="color:${s.overall>=7?'#34d399':s.overall>=4?'#fbbf24':'#f87171'}">${s.overall}/10</span></span>` : ''}
+              ${scoreChips}
+            </div>
+          </div>`;
+      }).join('');
+
+      document.getElementById('share-card').innerHTML = `
+        <div class="sc-top">
+          ${u.avatar_url ? `<img class="sc-avatar" src="/api/proxy/avatar?url=${encodeURIComponent(u.avatar_url)}" crossorigin="anonymous"/>` : ''}
+          <div style="flex:1;min-width:0">
+            <div class="sc-name">${esc(u.name || data.username)}</div>
+            <div class="sc-handle">@${esc(data.username)}${u.company ? ' · ' + esc(u.company) : ''}</div>
+            ${u.bio ? `<div class="sc-bio">${esc(u.bio)}</div>` : ''}
+            ${profile.maturity_level ? `<span class="sc-badge">${esc(profile.maturity_level)}</span>` : ''}
+          </div>
+          <div class="sc-meta">
+            ${u.public_repos != null ? `<div class="sc-meta-stat"><strong>${u.public_repos}</strong> repos</div>` : ''}
+            ${u.followers != null ? `<div class="sc-meta-stat"><strong>${u.followers}</strong> followers</div>` : ''}
+            ${u.location ? `<div class="sc-meta-stat">${esc(u.location)}</div>` : ''}
+          </div>
+        </div>
+
+        ${scoreItems ? `<div class="sc-section-label">Avg. Assessment Scores · ${Object.keys(data.repo_assessments).length} repo${Object.keys(data.repo_assessments).length!==1?'s':''} analyzed</div>
+        <div class="sc-scores" style="grid-template-columns:repeat(${Math.min(ALL_SCORE_KEYS.filter(([k])=>avg[k]!=null).length,4)},1fr)">${scoreItems}</div>` : ''}
+
+        ${allPoints ? `<div class="sc-divider"></div>
+        <div class="sc-section-label">Strengths &amp; Areas to Improve</div>
+        <div class="sc-points-grid">${allPoints}</div>` : ''}
+
+        ${repoRows ? `<div class="sc-divider"></div>
+        <div class="sc-section-label">Repository Breakdown</div>
+        <div class="sc-repos">${repoRows}</div>` : ''}
+
+        ${profile.summary ? `<div class="sc-divider"></div>
+        <div style="font-size:0.75rem;color:#4a7090;line-height:1.5;margin-bottom:1rem">${esc(profile.summary)}</div>` : ''}
+
+        <div class="sc-footer">
+          <span class="sc-brand">GitHub Analyzer</span>
+          <span class="sc-url">github-analyzer</span>
+        </div>`;
+
+      document.getElementById('share-section').style.display = 'block';
+    }
+
+    async function downloadCard() {
+      const card = document.getElementById('share-card');
+      const btn = document.querySelector('[onclick="downloadCard()"]');
+      btn.textContent = 'Generating…';
+      btn.disabled = true;
+      try {
+        // Pre-load avatar via proxy to avoid CORS tainting the canvas
+        const img = card.querySelector('.sc-avatar');
+        if (img && img.src) {
+          await new Promise(resolve => {
+            if (img.complete && img.naturalWidth) { resolve(); return; }
+            img.onload = img.onerror = resolve;
+          });
+        }
+        const username = JSON.parse(sessionStorage.getItem('analysisResults')).username;
+        const canvas = await html2canvas(card, {
+          backgroundColor: '#020b18',
+          scale: 2,
+          useCORS: true,
+          allowTaint: false,
+          logging: false,
+        });
+        const link = document.createElement('a');
+        link.download = `${username}-github-assessment.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      } finally {
+        btn.textContent = 'Download PNG';
+        btn.disabled = false;
+      }
+    }
+
+    initTheme();
+  </script>
+</body>
+</html>
