@@ -50,6 +50,9 @@ def _html(name: str):
         return HTMLResponse(f.read())
 
 
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon(): return HTMLResponse("", status_code=204)
+
 @app.get("/",          response_class=HTMLResponse) 
 async def landing():      return _html("landing.html")
 

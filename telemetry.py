@@ -21,25 +21,32 @@ resource = Resource.create({"service.name": SERVICE_NAME})
 
 
 def setup_telemetry(app):
+    otlp_available = OTLP_ENDPOINT != "http://localhost:4317" or os.getenv("OTEL_ENABLED")
+
     # Traces
     tracer_provider = TracerProvider(resource=resource)
-    tracer_provider.add_span_processor(
-        BatchSpanProcessor(OTLPSpanExporter(endpoint=OTLP_ENDPOINT, insecure=True))
-    )
+    if otlp_available:
+        tracer_provider.add_span_processor(
+            BatchSpanProcessor(OTLPSpanExporter(endpoint=OTLP_ENDPOINT, insecure=True))
+        )
     trace.set_tracer_provider(tracer_provider)
 
     # Metrics
-    metric_reader = PeriodicExportingMetricReader(
-        OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True)
-    )
-    meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    if otlp_available:
+        metric_reader = PeriodicExportingMetricReader(
+            OTLPMetricExporter(endpoint=OTLP_ENDPOINT, insecure=True)
+        )
+        meter_provider = MeterProvider(resource=resource, metric_readers=[metric_reader])
+    else:
+        meter_provider = MeterProvider(resource=resource)
     metrics.set_meter_provider(meter_provider)
 
     # Logs
     logger_provider = LoggerProvider(resource=resource)
-    logger_provider.add_log_record_processor(
-        BatchLogRecordProcessor(OTLPLogExporter(endpoint=OTLP_ENDPOINT, insecure=True))
-    )
+    if otlp_available:
+        logger_provider.add_log_record_processor(
+            BatchLogRecordProcessor(OTLPLogExporter(endpoint=OTLP_ENDPOINT, insecure=True))
+        )
     set_logger_provider(logger_provider)
 
     # Auto-instrument
