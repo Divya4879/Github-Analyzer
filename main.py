@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     yield
 
-app = FastAPI(title="GitHub Analyzer", lifespan=lifespan)
+app = FastAPI(title="GitIntel", lifespan=lifespan)
 setup_telemetry(app)
 app.mount("/static", StaticFiles(directory="templates"), name="static")
 

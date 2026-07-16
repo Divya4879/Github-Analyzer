@@ -15,7 +15,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 
 OTLP_ENDPOINT = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://localhost:4317")
-SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "github-analyzer")
+SERVICE_NAME = os.getenv("OTEL_SERVICE_NAME", "gitintel")
 
 resource = Resource.create({"service.name": SERVICE_NAME})
 

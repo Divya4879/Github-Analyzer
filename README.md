@@ -1,4 +1,4 @@
-# GitHub Analyzer — Full-Depth AI Code Assessment with SigNoz Observability
+# GitIntel — Full-Depth AI Code Assessment with SigNoz Observability
 
 A local web app that takes a GitHub username, fetches complete data for up to 5 selected repositories, runs a deep AI-powered assessment of every file using the Gemini API, and makes every API call, token, and pipeline step fully observable through SigNoz.
 
@@ -132,7 +132,7 @@ You should see containers for `signoz`, `clickhouse`, `postgres`, `clickhouse-ke
 
 ```bash
 git clone <repo-url>
-cd github-analyzer
+cd gitintel
 pip install -r requirements.txt
 ```
 
@@ -159,7 +159,7 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 GITHUB_TOKEN=your_github_personal_access_token
 GEMINI_API_KEY=your_gemini_api_key
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-OTEL_SERVICE_NAME=github-analyzer
+OTEL_SERVICE_NAME=gitintel
 ```
 
 ---
@@ -167,7 +167,7 @@ OTEL_SERVICE_NAME=github-analyzer
 ## Project Structure
 
 ```
-github-analyzer/
+gitintel/
 ├── main.py               # FastAPI app + OTel setup
 ├── github_client.py      # GitHub API fetching layer
 ├── gemini_client.py      # Gemini analysis layer
