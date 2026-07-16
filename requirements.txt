@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+requests
+httpx
+google-genai
+opentelemetry-sdk
+opentelemetry-api
+opentelemetry-exporter-otlp-proto-grpc
+opentelemetry-instrumentation-fastapi
+opentelemetry-instrumentation-requests
+aiohttp
+python-dotenv
