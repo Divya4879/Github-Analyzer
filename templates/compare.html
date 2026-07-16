@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Compare — GitHub Analyzer</title>
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/shared.css"/>
+  <style>
+    .page { max-width: 1080px; margin: 0 auto; padding: 6rem 1.5rem 6rem; }
+    .page-header { margin-bottom: 2.5rem; }
+    .page-header h1 { font-size: 1.625rem; font-weight: 700; letter-spacing: -0.035em; margin-bottom: 0.35rem; }
+    .page-header p { font-size: 0.875rem; color: var(--text-3); }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    @media (max-width: 768px) { .compare-grid { grid-template-columns: 1fr; } }
+
+    .compare-col {
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+    }
+    .compare-col h3 {
+      font-size: 0.8rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--text-4); margin-bottom: 1rem;
+    }
+    .search-row { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .repo-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 320px; overflow-y: auto; }
+    .repo-item {
+      display: flex; align-items: center; gap: 0.625rem;
+      padding: 0.6rem 0.75rem;
+      background: var(--bg-2); border: 1px solid var(--border-1);
+      border-radius: var(--radius-sm); cursor: pointer;
+      font-size: 0.83rem; color: var(--text-2);
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .repo-item:hover { border-color: var(--border-3); }
+    .repo-item.selected { border-color: var(--accent); background: var(--accent-dim); color: var(--text-1); }
+    .repo-item-check { width: 14px; height: 14px; border-radius: 3px; border: 1px solid var(--border-3); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; }
+    .repo-item.selected .repo-item-check { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+    .profile-mini { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .profile-mini img { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border-2); }
+    .profile-mini-name { font-size: 0.875rem; font-weight: 600; }
+    .profile-mini-handle { font-size: 0.78rem; color: var(--text-3); }
+
+    .compare-results {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    @media (max-width: 768px) { .compare-results { grid-template-columns: 1fr; } }
+
+    .compare-result-col h3 {
+      font-size: 0.9rem; font-weight: 700;
+      letter-spacing: -0.02em; margin-bottom: 1rem;
+      padding-bottom: 0.75rem; border-bottom: 1px solid var(--border-1);
+    }
+    .score-row-compare {
+      display: flex; align-items: center;
+      justify-content: space-between; gap: 0.75rem;
+      padding: 0.5rem 0; border-bottom: 1px solid var(--border-1);
+      font-size: 0.82rem;
+    }
+    .score-row-compare:last-child { border-bottom: none; }
+    .score-name-c { color: var(--text-2); font-weight: 500; flex: 1; }
+    .score-bar-c { flex: 2; height: 4px; background: var(--bg-3); border-radius: 2px; overflow: hidden; }
+    .score-bar-c-fill { height: 100%; border-radius: 2px; background: linear-gradient(90deg, var(--accent), var(--accent-3)); }
+    .score-val-c { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; font-weight: 700; color: var(--accent-2); width: 32px; text-align: right; }
+    .winner { color: var(--green); }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/"><div class="nav-logo-mark">G</div>GitHub Analyzer</a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyze">Analyze</a>
+        <a href="/compare" class="active">Compare</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    </div>
+  </nav>
+
+  <div class="page page-enter">
+    <div class="page-header">
+      <h1>Compare Developers</h1>
+      <p>Analyze two GitHub profiles side by side. Up to 3 repositories each.</p>
+    </div>
+
+    <div class="compare-grid">
+      <div class="compare-col">
+        <h3>Developer A</h3>
+        <div class="search-row">
+          <input type="text" id="username-a" placeholder="GitHub username" autocomplete="off"/>
+          <button class="btn btn-primary" onclick="fetchUser('a')">Fetch</button>
+        </div>
+        <div id="profile-a"></div>
+        <div class="repo-list" id="repos-a"></div>
+      </div>
+      <div class="compare-col">
+        <h3>Developer B</h3>
+        <div class="search-row">
+          <input type="text" id="username-b" placeholder="GitHub username" autocomplete="off"/>
+          <button class="btn btn-primary" onclick="fetchUser('b')">Fetch</button>
+        </div>
+        <div id="profile-b"></div>
+        <div class="repo-list" id="repos-b"></div>
+      </div>
+    </div>
+
+    <div id="status" class="status-bar hidden" style="margin-bottom:1.5rem"></div>
+    <button class="btn btn-primary btn-full" id="compare-btn" onclick="runCompare()" disabled style="margin-bottom:2rem">Run Comparison</button>
+
+    <div id="compare-results" class="hidden">
+      <div class="compare-results" id="compare-results-inner"></div>
+    </div>
+  </div>
+
+  <script>
+    const state = { a: { user: null, repos: [], selected: new Set() }, b: { user: null, repos: [], selected: new Set() } };
+
+    function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+    async function fetchUser(side) {
+      const username = document.getElementById(`username-${side}`).value.trim();
+      if (!username) return;
+      setStatus('Fetching...', 'running');
+      try {
+        const res = await fetch(`/api/user/${username}`);
+        if (!res.ok) throw new Error((await res.json()).detail);
+        const data = await res.json();
+        state[side].user = data.user;
+        state[side].repos = data.repos;
+        state[side].selected.clear();
+        renderProfile(side, data.user);
+        renderRepos(side, data.repos);
+        clearStatus();
+        checkReady();
+      } catch (e) { setStatus(e.message, 'error'); }
+    }
+
+    function renderProfile(side, u) {
+      document.getElementById(`profile-${side}`).innerHTML = `
+        <div class="profile-mini">
+          <img src="${esc(u.avatar_url)}" alt="${esc(u.login)}"/>
+          <div>
+            <div class="profile-mini-name">${esc(u.name || u.login)}</div>
+            <div class="profile-mini-handle">@${esc(u.login)} · ${u.public_repos} repos</div>
+          </div>
+        </div>`;
+    }
+
+    function renderRepos(side, repos) {
+      document.getElementById(`repos-${side}`).innerHTML = repos.map(r => `
+        <div class="repo-item" id="ri-${side}-${CSS.escape(r.full_name)}" onclick="toggleRepo('${side}','${r.full_name}')">
+          <div class="repo-item-check"></div>
+          <span>${esc(r.name)}</span>
+          ${r.language ? `<span style="font-size:0.72rem;color:var(--text-4)">${esc(r.language)}</span>` : ''}
+          <span style="margin-left:auto;font-size:0.72rem;color:var(--text-4)">★${r.stargazers_count}</span>
+        </div>`).join('');
+    }
+
+    function toggleRepo(side, fullName) {
+      const s = state[side];
+      if (s.selected.has(fullName)) {
+        s.selected.delete(fullName);
+        document.getElementById(`ri-${side}-${CSS.escape(fullName)}`).classList.remove('selected');
+      } else {
+        if (s.selected.size >= 3) return;
+        s.selected.add(fullName);
+        document.getElementById(`ri-${side}-${CSS.escape(fullName)}`).classList.add('selected');
+      }
+      checkReady();
+    }
+
+    function checkReady() {
+      document.getElementById('compare-btn').disabled =
+        state.a.selected.size === 0 || state.b.selected.size === 0;
+    }
+
+    async function runCompare() {
+      setStatus('Running comparison — this may take several minutes…', 'running');
+      document.getElementById('compare-btn').disabled = true;
+      document.getElementById('compare-results').classList.add('hidden');
+      try {
+        const res = await fetch('/api/compare', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username_a: state.a.user.login, repos_a: [...state.a.selected],
+            username_b: state.b.user.login, repos_b: [...state.b.selected],
+          }),
+        });
+        if (!res.ok) throw new Error((await res.json()).detail);
+        const data = await res.json();
+        renderComparison(data);
+        clearStatus();
+      } catch (e) {
+        setStatus(e.message, 'error');
+      } finally {
+        document.getElementById('compare-btn').disabled = false;
+      }
+    }
+
+    function renderComparison(data) {
+      const LABELS = {
+        code_quality:'Code Quality', engineering_practices:'Engineering',
+        test_coverage:'Tests', documentation:'Docs',
+        complexity:'Complexity', security:'Security',
+        architecture:'Architecture', overall:'Overall'
+      };
+      function colHtml(result) {
+        const p = result.developer_profile || {};
+        const scores = p.overall_score ? { overall: p.overall_score } : {};
+        // aggregate scores from repos
+        const allScores = {};
+        Object.values(result.repo_assessments).forEach(a => {
+          Object.entries(a.scores || {}).forEach(([k, v]) => {
+            if (!allScores[k]) allScores[k] = [];
+            allScores[k].push(v);
+          });
+        });
+        const avg = {};
+        Object.entries(allScores).forEach(([k, vals]) => {
+          avg[k] = Math.round((vals.reduce((a,b)=>a+b,0)/vals.length)*10)/10;
+        });
+        return { avg, profile: p, username: result.username };
+      }
+      const a = colHtml(data.a);
+      const b = colHtml(data.b);
+      const keys = [...new Set([...Object.keys(a.avg), ...Object.keys(b.avg)])];
+
+      function col(side, info, other) {
+        const rows = keys.map(k => {
+          const va = info.avg[k] || 0, vb = other.avg[k] || 0;
+          const win = side === 'a' ? va >= vb : vb >= va;
+          return `<div class="score-row-compare">
+            <span class="score-name-c">${LABELS[k]||k}</span>
+            <div class="score-bar-c"><div class="score-bar-c-fill" style="width:${(info.avg[k]||0)*10}%"></div></div>
+            <span class="score-val-c ${win?'winner':''}">${info.avg[k]||'—'}</span>
+          </div>`;
+        }).join('');
+        return `<div class="compare-result-col">
+          <h3>${esc(info.username)} ${info.profile.maturity_level ? `<span style="font-size:0.75rem;color:var(--text-3);font-weight:400">${esc(info.profile.maturity_level)}</span>` : ''}</h3>
+          ${rows}
+          ${info.profile.summary ? `<p style="font-size:0.82rem;color:var(--text-3);margin-top:1rem;line-height:1.65">${esc(info.profile.summary)}</p>` : ''}
+        </div>`;
+      }
+
+      document.getElementById('compare-results-inner').innerHTML =
+        col('a', a, b) + col('b', b, a);
+      document.getElementById('compare-results').classList.remove('hidden');
+    }
+
+    function setStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg; el.className = `status-bar ${type}`;
+    }
+    function clearStatus() { document.getElementById('status').classList.add('hidden'); }
+
+    ['a','b'].forEach(s => {
+      document.getElementById(`username-${s}`).addEventListener('keydown', e => {
+        if (e.key === 'Enter') fetchUser(s);
+      });
+    });
+
+    initTheme();
+  </script>
+</body>
+</html>
