@@ -1,188 +1,193 @@
-# GitIntel — Full-Depth AI Code Assessment with SigNoz Observability
+# GitIntel
 
-A local web app that takes a GitHub username, fetches complete data for up to 5 selected repositories, runs a deep AI-powered assessment of every file using the Gemini API, and makes every API call, token, and pipeline step fully observable through SigNoz.
+AI-powered GitHub profile analyzer. Enter a username, select up to 5 repos, and get a deep code assessment powered by Gemini 2.5 Flash — with full observability via OpenTelemetry and SigNoz.
 
-Built for the [Agents of SigNoz Hackathon](https://signoz.io/hackathon) — blog track.
+**Live demo:** [gitintel-2kh2.onrender.com](https://gitintel-2kh2.onrender.com)
 
----
-
-## What It Does
-
-1. Enter a GitHub username
-2. App fetches full profile + all public repositories
-3. Pick up to 5 repos for deep analysis
-4. For each selected repo, the app fetches:
-   - Every file's content (all directories, all files)
-   - README
-   - Languages and LOC breakdown
-   - Commit history, contributors, open issues, PRs, repo metadata
-5. Gemini API analyzes everything and produces a per-repo assessment:
-   - Code quality (naming, structure, modularity, error handling)
-   - Engineering practices (design patterns, separation of concerns, test presence)
-   - Documentation quality (README, inline comments, docstrings)
-   - Language breakdown and lines of code
-   - Complexity (file sizes, nesting depth, coupling)
-   - Red flags (hardcoded values, missing error handling, etc.)
-   - Strengths and weaknesses
-   - Score out of 10 per dimension
-6. An overall developer profile score is generated across all selected repos
-7. SigNoz observes every step — traces, metrics, logs, dashboards, alerts
+> Built for the [Agents of SigNoz Hackathon](https://signoz.io/hackathon) — blog track.
 
 ---
 
-## Observability with SigNoz
+## Features
 
-Every part of the pipeline is instrumented with OpenTelemetry and ships telemetry to a self-hosted SigNoz instance.
-
-### Traces
-- Full distributed trace per assessment run
-- Spans for every GitHub API call (profile fetch, repo list, file tree, individual file fetches)
-- Spans for every Gemini API call (per repo, per batch)
-- Analysis pipeline spans (file batching, prompt construction, response parsing)
-
-### Metrics
-- GitHub API rate limit remaining (gauge)
-- Gemini token usage — prompt tokens, completion tokens, total tokens per repo and per run
-- File count and LOC processed per repo
-- API call latency (GitHub and Gemini)
-- Assessment duration per repo and total run time
-- Error counts per API
-
-### Logs
-- Structured logs at every pipeline step
-- Which file is being fetched, its size, language
-- Gemini prompt size and response size per batch
-- Rate limit warnings
-- Full error context on failures
-
-### Dashboards
-- API latency over time (GitHub + Gemini)
-- Token cost per repo and cumulative per run
-- GitHub rate limit gauge with warning threshold
-- Error rate panel
-- Assessment duration breakdown per repo
-- File and LOC volume processed
-
-### Alerts
-- GitHub API rate limit below threshold
-- Gemini API error spike
+- **AI code assessment** — scores each repo across 8 dimensions: code quality, architecture, security, test coverage, documentation, complexity, engineering practices, and overall
+- **Developer profile** — cross-repo analysis with maturity level (Junior → Staff), strengths, weaknesses, and growth areas
+- **Side-by-side comparison** — compare two GitHub profiles against each other
+- **Downloadable assessment card** — export your full results as a PNG with your GitHub profile picture and all scores
+- **Real-time streaming** — analysis progress streamed live via SSE, no page refresh needed
+- **Full observability** — traces, metrics, and logs via OpenTelemetry exported to SigNoz
+  - Gemini token usage tracked per repo (`gemini.tokens.total`, `gemini.tokens.prompt`, `gemini.tokens.completion`)
+  - GitHub rate limit gauge updated on every API response (`github.ratelimit.remaining`)
+  - Per-repo assessment duration histogram (`assessment.duration`)
+  - File and LOC counters (`github.files.processed`, `github.loc.processed`)
+  - API error counter by service (`api.errors`)
 
 ---
 
 ## Tech Stack
 
-| Layer | Tool |
+| Layer | Technology |
 |---|---|
-| Backend | Python + FastAPI |
-| GitHub Data | GitHub REST API (via `requests`) |
-| AI Analysis | Google Gemini API (`google-generativeai`) |
-| Instrumentation | `opentelemetry-sdk`, `opentelemetry-instrumentation-fastapi`, `opentelemetry-instrumentation-requests` |
-| Telemetry Export | OTLP → SigNoz (self-hosted, Docker) |
-| Frontend | HTML + vanilla JS (local only) |
+| Backend | Python 3.12, FastAPI, Uvicorn |
+| AI | Gemini 2.5 Flash via `google-genai` |
+| GitHub data | GitHub REST API, `aiohttp` (10 concurrent workers) |
+| Observability | OpenTelemetry SDK, SigNoz (self-hosted) |
+| Frontend | Vanilla JS, HTML/CSS (no framework) |
 
 ---
 
-## SigNoz Setup (Self-Hosted via Docker)
+## Prerequisites
 
-This project uses SigNoz deployed locally with [Foundry](https://signoz.io/docs/install/docker/).
+- Ubuntu 24.04 (or similar)
+- Python 3.12
+- Docker and Docker Compose v2
+- A **GitHub Personal Access Token** — [github.com/settings/tokens](https://github.com/settings/tokens) → Generate new token (classic) → enable `repo` and `read:user`
+- A **Gemini API key** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free tier works)
 
-### Prerequisites
-- Docker Engine 20.10+ with Docker Compose v2
-- At least 4GB memory allocated to Docker
-- Ports open: `8080` (SigNoz UI), `4317` and `4318` (OTLP ingestion)
-
-### Install foundryctl
-
+Verify:
 ```bash
-curl -fsSL https://signoz.io/foundry.sh | bash
+python3 --version    # 3.12.x
+docker --version
+docker compose version
 ```
-
-### Create `casting.yaml`
-
-```yaml
-apiVersion: v1alpha1
-kind: Installation
-metadata:
-  name: signoz
-spec:
-  deployment:
-    flavor: compose
-    mode: docker
-```
-
-### Deploy
-
-```bash
-foundryctl cast -f casting.yaml
-```
-
-### Verify
-
-```bash
-docker ps
-```
-
-You should see containers for `signoz`, `clickhouse`, `postgres`, `clickhouse-keeper`, and the `otel-collector`. Once all are healthy, open [http://localhost:8080](http://localhost:8080).
 
 ---
 
-## Project Setup
+## Local Setup
 
-### 1. Clone and install dependencies
+### 1. Clone and install
 
 ```bash
-git clone <repo-url>
-cd gitintel
+git clone https://github.com/Divya4879/Github-Analyzer
+cd Github-Analyzer
+
+python3 -m venv venv
+source venv/bin/activate
+
 pip install -r requirements.txt
 ```
 
-### 2. Set environment variables
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
-# Fill in your GitHub token and Gemini API key
+nano .env
 ```
 
-### 3. Run the app
-
-```bash
-uvicorn main:app --reload
-```
-
-Open [http://localhost:8000](http://localhost:8000) in your browser.
-
----
-
-## Environment Variables
-
-```
-GITHUB_TOKEN=your_github_personal_access_token
-GEMINI_API_KEY=your_gemini_api_key
+```env
+GITHUB_TOKEN=ghp_yourtokenhere
+GEMINI_API_KEY=AIzaSy_yourkeyhere
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 OTEL_SERVICE_NAME=gitintel
 ```
+
+### 3. Start SigNoz (observability backend)
+
+```bash
+cd pours/deployment
+docker compose up -d
+
+# Wait ~60 seconds for ClickHouse to initialize, then verify:
+docker compose ps
+```
+
+SigNoz UI: `http://localhost:8080`
+
+### 4. Run the app
+
+```bash
+cd ../..
+source venv/bin/activate
+uvicorn main:app --reload
+```
+
+App: `http://localhost:8000`
+
+Once you run an analysis, your `gitintel` service appears in SigNoz → Services tab with live traces, metrics, and logs.
+
+---
+
+## What SigNoz Tracks
+
+| Signal | What you see |
+|---|---|
+| Traces | Full span tree per analysis: `github.get_user` → `github.get_all_files` → `gemini.assess_repo` → `gemini.generate` (per batch) → `gemini.developer_profile` |
+| `gemini.tokens.total` | Token cost per repo — reveals which repos are expensive |
+| `github.ratelimit.remaining` | Live GitHub API headroom (5,000 req/hour limit) |
+| `assessment.duration` | p50/p95 latency histogram per repo |
+| `api.errors` | Error counts broken down by service (github / gemini) |
+| Logs | All structured logs correlated with trace IDs — click any log to jump to its trace |
+
+---
+
+## API Endpoints
+
+| Method | Path | Description |
+|---|---|---|
+| `GET` | `/` | Landing page |
+| `GET` | `/analyze` | Analysis form |
+| `GET` | `/results` | Results page |
+| `GET` | `/compare` | Comparison page |
+| `GET` | `/api/user/{username}` | Fetch user info and repo list |
+| `POST` | `/api/analyze/stream` | Run analysis with SSE streaming (max 5 repos) |
+| `POST` | `/api/analyze` | Run analysis, return JSON (max 5 repos) |
+| `POST` | `/api/compare` | Compare two users (max 3 repos each) |
+| `GET` | `/api/proxy/avatar` | Proxy GitHub avatars for CORS-safe PNG export |
+| `DELETE` | `/api/cache` | Clear in-memory file cache |
 
 ---
 
 ## Project Structure
 
 ```
-gitintel/
-├── main.py               # FastAPI app + OTel setup
-├── github_client.py      # GitHub API fetching layer
-├── gemini_client.py      # Gemini analysis layer
-├── telemetry.py          # OpenTelemetry instrumentation setup
-├── templates/
-│   └── index.html        # Frontend UI
-├── casting.yaml          # SigNoz Foundry deployment config
+Github-Analyzer/
+├── main.py              # FastAPI app, all routes and SSE streaming
+├── github_client.py     # GitHub API client, async file fetching, OTel spans
+├── gemini_client.py     # Gemini AI client, batching logic, token tracking
+├── telemetry.py         # OTel setup — traces, metrics, logs, custom instruments
 ├── requirements.txt
-└── .env.example
+├── .env.example
+├── Procfile             # For Render deployment
+├── templates/
+│   ├── landing.html
+│   ├── analyze.html
+│   ├── loading.html
+│   ├── results.html     # Assessment cards + PNG download
+│   ├── compare.html
+│   ├── shared.css
+│   └── theme.js         # Dark/light theme toggle
+└── pours/deployment/
+    ├── compose.yaml     # SigNoz full stack (ClickHouse, Keeper, Postgres, Ingester)
+    ├── ingester/        # OTel Collector config
+    ├── telemetrystore/  # ClickHouse config
+    └── telemetrykeeper/ # ClickHouse Keeper config
 ```
+
+---
+
+## Deployment (Render)
+
+The app deploys to Render without SigNoz — OTel export is automatically skipped when no endpoint is reachable, so there are no errors.
+
+1. Push to GitHub
+2. Create a new Web Service on [render.com](https://render.com), connect your repo
+3. Set environment variables in the Render dashboard:
+   ```
+   GITHUB_TOKEN=your_token
+   GEMINI_API_KEY=your_key
+   OTEL_SERVICE_NAME=gitintel
+   ```
+4. Build command: `pip install -r requirements.txt`
+5. Start command: `uvicorn main:app --host 0.0.0.0 --port $PORT`
+
+> Note: Render's free tier spins down after 15 minutes of inactivity. First request after sleep takes ~30 seconds.
 
 ---
 
 ## Notes
 
-- Analysis time per run can be large depending on repo size — this is intentional. The goal is depth, not speed.
-- GitHub API rate limits apply. A personal access token with `repo` read scope is recommended to avoid hitting unauthenticated limits.
-- Gemini context window limits are handled by batching files per repo.
+- **Max repos per analysis:** 5 (analyze), 3 per user (compare)
+- **File concurrency:** 10 parallel GitHub API workers per repo
+- **Gemini batching:** source files are batched at 800,000 characters per call to keep individual request latency predictable
+- **File cache:** fetched repo files are cached in memory for the session — use `DELETE /api/cache` to clear
+- **OTel graceful degradation:** if `OTEL_EXPORTER_OTLP_ENDPOINT` is unreachable, the app runs normally with no export errors
