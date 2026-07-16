@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analyzing — GitHub Analyzer</title>
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/shared.css"/>
+  <style>
+    .loading-page {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+    }
+
+    .spinner {
+      position: relative;
+      width: 56px; height: 56px;
+      margin-bottom: 2.25rem;
+    }
+    .spinner-ring {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 2px solid var(--border-2);
+    }
+    .spinner-arc {
+      position: absolute; inset: 0;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: var(--accent);
+      animation: spin 0.85s linear infinite;
+    }
+    .spinner-arc-2 {
+      position: absolute; inset: 6px;
+      border-radius: 50%;
+      border: 2px solid transparent;
+      border-top-color: var(--accent-3);
+      animation: spin 1.3s linear infinite reverse;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      color: var(--text-1);
+      margin-bottom: 0.5rem;
+    }
+    .loading-sub {
+      font-size: 0.875rem;
+      color: var(--text-3);
+      margin-bottom: 2.5rem;
+      max-width: 400px;
+      line-height: 1.65;
+    }
+
+    .progress-track {
+      width: 300px; height: 2px;
+      background: var(--border-1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-bottom: 2.75rem;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent-3));
+      border-radius: 2px;
+      width: 0%;
+      transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+    }
+
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      width: 100%;
+      max-width: 360px;
+      text-align: left;
+    }
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      background: var(--bg-1);
+      border: 1px solid var(--border-1);
+      border-radius: var(--radius-sm);
+      font-size: 0.84rem;
+      color: var(--text-3);
+      transition: all 0.25s;
+      letter-spacing: -0.01em;
+    }
+    .step-item.active { border-color: var(--accent); color: var(--text-1); background: var(--accent-dim); }
+    .step-item.done   { border-color: var(--green);  color: var(--green);  background: var(--green-dim); }
+    .step-item.error  { border-color: var(--red);    color: var(--red);    background: var(--red-dim); }
+    .step-icon { font-size: 0.85rem; flex-shrink: 0; width: 16px; text-align: center; }
+
+    @media (max-width: 640px) {
+      .loading-page { padding: 1.25rem; }
+      .loading-title { font-size: 1.1rem; }
+      .loading-sub { font-size: 0.82rem; }
+      .progress-track { width: 100%; max-width: 300px; }
+      .steps-list { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">
+      <div class="nav-logo-mark">G</div>
+      GitHub Analyzer
+    </a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyze">Analyze</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    </div>
+  </nav>
+
+  <div class="loading-page page-enter">
+    <div class="spinner" id="spinner">
+      <div class="spinner-ring"></div>
+      <div class="spinner-arc"></div>
+      <div class="spinner-arc-2"></div>
+    </div>
+    <div class="loading-title" id="loading-title">Preparing analysis</div>
+    <div class="loading-sub" id="loading-sub">Fetching repository data and running AI assessment. This may take a few minutes for large repositories.</div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+    <div class="steps-list" id="steps-list"></div>
+  </div>
+
+  <script>
+    const STEPS = [
+      { id: 'fetch',   label: 'Fetching repository files' },
+      { id: 'gemini',  label: 'Running analysis' },
+      { id: 'profile', label: 'Building developer profile' },
+      { id: 'done',    label: 'Finalizing results' },
+    ];
+
+    function renderSteps(activeId, doneIds = []) {
+      document.getElementById('steps-list').innerHTML = STEPS.map(s => {
+        const done = doneIds.includes(s.id);
+        const active = s.id === activeId;
+        const cls = done ? 'done' : active ? 'active' : '';
+        const icon = done ? '✓' : active ? '◉' : '○';
+        return `<div class="step-item ${cls}"><span class="step-icon">${icon}</span>${s.label}</div>`;
+      }).join('');
+    }
+
+    function setProgress(p) { document.getElementById('progress-fill').style.width = p + '%'; }
+
+    function setTitle(t) { document.getElementById('loading-title').textContent = t; }
+    function setSub(t)   { document.getElementById('loading-sub').textContent = t; }
+
+    async function run() {
+      const raw = sessionStorage.getItem('analyzePayload');
+      if (!raw) { window.location.href = '/analyze'; return; }
+      const payload = JSON.parse(raw);
+
+      renderSteps('fetch', []); setProgress(5);
+      setTitle(`Analyzing ${payload.repos.length} repositor${payload.repos.length > 1 ? 'ies' : 'y'}`);
+
+      const doneRepos = [];
+      const totalRepos = payload.repos.length;
+
+      try {
+        const resp = await fetch('/api/analyze/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            if (!line.startsWith('data: ')) continue;
+            const data = JSON.parse(line.slice(6));
+
+            if (data.stage === 'fetching_meta' || data.stage === 'fetching_files') {
+              renderSteps('fetch', ['fetch'].slice(0, 0));
+              setSub(`Fetching files for ${data.repo}…`);
+              setProgress(10 + (doneRepos.length / totalRepos) * 25);
+            }
+            else if (data.stage === 'files_ready') {
+              setSub(`${data.file_count} files · ${data.total_loc.toLocaleString()} lines — ${data.repo}`);
+              setProgress(15 + (doneRepos.length / totalRepos) * 30);
+            }
+            else if (data.stage === 'analyzing') {
+              renderSteps('gemini', ['fetch']);
+              setSub(`Running assessment on ${data.repo}…`);
+              setProgress(35 + (doneRepos.length / totalRepos) * 40);
+            }
+            else if (data.stage === 'repo_done') {
+              doneRepos.push(data.repo);
+              setSub(`Completed ${doneRepos.length} of ${totalRepos} repositories`);
+              setProgress(35 + (doneRepos.length / totalRepos) * 45);
+            }
+            else if (data.stage === 'retry') {
+              setSub(`Retrying ${data.repo} (attempt ${data.attempt})… waiting ${data.wait}s`);
+            }
+            else if (data.stage === 'building_profile') {
+              renderSteps('profile', ['fetch', 'gemini']);
+              setSub('Synthesizing developer profile…');
+              setProgress(85);
+            }
+            else if (data.stage === 'done') {
+              renderSteps('done', ['fetch', 'gemini', 'profile']);
+              setProgress(100);
+              setTitle('Analysis complete');
+              document.getElementById('spinner').querySelector('.spinner-arc').style.borderTopColor = 'var(--green)';
+              document.getElementById('spinner').querySelector('.spinner-arc-2').style.borderTopColor = 'var(--green)';
+
+              sessionStorage.setItem('analysisResults', JSON.stringify(data.result));
+              sessionStorage.removeItem('analyzePayload');
+              setTimeout(() => { window.location.href = '/results'; }, 500);
+            }
+          }
+        }
+      } catch (e) {
+        document.getElementById('spinner').style.display = 'none';
+        setTitle('Analysis failed');
+        setSub(e.message);
+        document.getElementById('steps-list').innerHTML =
+          `<div class="step-item error"><span class="step-icon">✕</span>${e.message}</div>`;
+      }
+    }
+
+    initTheme();
+    run();
+  </script>
+</body>
+</html>

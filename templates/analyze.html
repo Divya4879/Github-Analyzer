@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Analyze — GitHub Analyzer</title>
+  <script src="/static/theme.js"></script>
+  <link rel="stylesheet" href="/static/shared.css"/>
+  <style>
+    .page { max-width: 860px; margin: 0 auto; padding: 6rem 1.5rem 6rem; }
+
+    .page-header { margin-bottom: 2.5rem; }
+    .page-header h1 {
+      font-size: 1.625rem; font-weight: 700;
+      letter-spacing: -0.035em; margin-bottom: 0.35rem;
+    }
+    .page-header p { font-size: 0.875rem; color: var(--text-3); }
+
+    .search-row { display: flex; gap: 0.625rem; margin-bottom: 1.75rem; }
+
+    /* Profile */
+    .profile-card {
+      display: flex; align-items: center; gap: 1.25rem;
+      padding: 1.25rem 1.5rem;
+      background: var(--bg-1); border: 1px solid var(--border-1);
+      border-radius: var(--radius); margin-bottom: 2.25rem;
+    }
+    .profile-card img { width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0; border: 2px solid var(--border-2); }
+    .profile-name { font-size: 0.95rem; font-weight: 600; letter-spacing: -0.02em; }
+    .profile-handle { font-size: 0.82rem; color: var(--text-3); margin-top: 0.1rem; }
+    .profile-bio { font-size: 0.82rem; color: var(--text-2); margin-top: 0.3rem; line-height: 1.5; }
+    .profile-stats { display: flex; gap: 1.5rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .profile-stat { font-size: 0.78rem; color: var(--text-3); }
+    .profile-stat strong { color: var(--text-2); font-weight: 600; }
+
+    /* Repos */
+    .repo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+      gap: 0.625rem;
+      margin-bottom: 0.5rem;
+    }
+    .repo-card {
+      padding: 1rem 1.125rem;
+      background: var(--bg-1); border: 1px solid var(--border-1);
+      border-radius: var(--radius); cursor: pointer;
+      transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+      user-select: none;
+    }
+    .repo-card:hover { border-color: var(--border-3); background: var(--bg-2); }
+    .repo-card.selected {
+      border-color: var(--accent);
+      background: var(--accent-dim);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+    .repo-card-name {
+      font-size: 0.875rem; font-weight: 600;
+      margin-bottom: 0.3rem; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis;
+      letter-spacing: -0.02em;
+    }
+    .repo-card-desc {
+      font-size: 0.79rem; color: var(--text-3); margin-bottom: 0.65rem;
+      display: -webkit-box; -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical; overflow: hidden; line-height: 1.5;
+    }
+    .repo-card-meta { display: flex; gap: 0.875rem; font-size: 0.74rem; color: var(--text-3); align-items: center; }
+    .lang-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent-2); display: inline-block; margin-right: 3px; }
+
+    /* Sticky analyze bar */
+    .analyze-bar {
+      position: sticky; bottom: 1.5rem;
+      background: var(--bg-2);
+      border: 1px solid var(--border-2);
+      border-radius: var(--radius);
+      padding: 1rem 1.25rem;
+      display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+      margin-top: 1.5rem;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-md);
+    }
+    .analyze-bar-info { font-size: 0.85rem; color: var(--text-3); }
+    .analyze-bar-info strong { color: var(--text-1); font-weight: 600; }
+    .analyze-bar-hint { font-size: 0.78rem; color: var(--text-4); margin-top: 0.15rem; }
+
+    @media (max-width: 768px) {
+      .repo-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 640px) {
+      .page { padding: 5rem 1rem 5rem; }
+      .page-header h1 { font-size: 1.25rem; }
+      .search-row { flex-direction: column; }
+      .search-row .btn { width: 100%; }
+      .repo-grid { grid-template-columns: 1fr; }
+      .profile-card { flex-direction: column; align-items: flex-start; gap: 0.875rem; }
+      .profile-stats { gap: 1rem; }
+      .analyze-bar { flex-direction: column; align-items: stretch; gap: 0.75rem; }
+      .analyze-bar .btn { width: 100%; }
+    }
+
+    @media (max-width: 480px) {
+      .repo-card-meta { flex-wrap: wrap; gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <nav>
+    <a class="nav-logo" href="/">
+      <div class="nav-logo-mark">G</div>
+      GitHub Analyzer
+    </a>
+    <div class="nav-right">
+      <div class="nav-links">
+        <a href="/">Home</a>
+        <a href="/analyze" class="active">Analyze</a>
+        <a href="/compare">Compare</a>
+      </div>
+      <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme"></button>
+    </div>
+  </nav>
+
+  <div class="page page-enter">
+    <div class="page-header">
+      <h1>Analyze a Developer</h1>
+      <p>Enter a GitHub username to fetch their profile and select repositories for analysis.</p>
+    </div>
+
+    <div class="search-row">
+      <input type="text" id="username-input" placeholder="Enter a GitHub username" autocomplete="off"/>
+      <button class="btn btn-primary" id="fetch-btn" onclick="fetchUser()">Fetch Profile</button>
+    </div>
+
+    <div id="status" class="status-bar hidden" style="margin-bottom:1.5rem"></div>
+
+    <div id="profile-section" class="hidden">
+      <div class="profile-card" id="profile-card"></div>
+      <p class="section-label">Repositories</p>
+      <div class="repo-grid" id="repo-grid"></div>
+      <div class="analyze-bar">
+        <div>
+          <div class="analyze-bar-info"><strong id="bar-count">0</strong> of 5 repositories selected</div>
+          <div class="analyze-bar-hint">Click repositories above to select them</div>
+        </div>
+        <button class="btn btn-primary" id="analyze-btn" onclick="startAnalysis()" disabled>Run Analysis</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedRepos = new Set();
+    let currentUsername = '';
+
+    function esc(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    async function fetchUser() {
+      const username = document.getElementById('username-input').value.trim();
+      if (!username) return;
+      currentUsername = username;
+      setStatus('Fetching profile...', 'running');
+      document.getElementById('fetch-btn').disabled = true;
+      document.getElementById('profile-section').classList.add('hidden');
+      try {
+        const res = await fetch(`/api/user/${username}`);
+        if (!res.ok) throw new Error((await res.json()).detail);
+        const data = await res.json();
+        renderProfile(data.user);
+        renderRepos(data.repos);
+        document.getElementById('profile-section').classList.remove('hidden');
+        clearStatus();
+      } catch (e) {
+        setStatus(`Error: ${e.message}`, 'error');
+      } finally {
+        document.getElementById('fetch-btn').disabled = false;
+      }
+    }
+
+    function renderProfile(u) {
+      document.getElementById('profile-card').innerHTML = `
+        <img src="${esc(u.avatar_url)}" alt="${esc(u.login)}"/>
+        <div>
+          <div class="profile-name">${esc(u.name || u.login)}</div>
+          <div class="profile-handle">@${esc(u.login)}${u.company ? ' &nbsp;·&nbsp; ' + esc(u.company) : ''}</div>
+          ${u.bio ? `<div class="profile-bio">${esc(u.bio)}</div>` : ''}
+          <div class="profile-stats">
+            <div class="profile-stat"><strong>${u.public_repos}</strong> repositories</div>
+            <div class="profile-stat"><strong>${u.followers}</strong> followers</div>
+            ${u.location ? `<div class="profile-stat">${esc(u.location)}</div>` : ''}
+          </div>
+        </div>`;
+    }
+
+    function renderRepos(repos) {
+      selectedRepos.clear(); updateCount();
+      document.getElementById('repo-grid').innerHTML = repos.map(r => `
+        <div class="repo-card" id="rc-${CSS.escape(r.full_name)}" onclick="toggleRepo('${r.full_name}')">
+          <div class="repo-card-name">${esc(r.name)}</div>
+          <div class="repo-card-desc">${r.description ? esc(r.description) : 'No description provided.'}</div>
+          <div class="repo-card-meta">
+            ${r.language ? `<span><span class="lang-dot"></span>${esc(r.language)}</span>` : ''}
+            <span>★ ${r.stargazers_count}</span>
+            <span>${r.forks_count} forks</span>
+          </div>
+        </div>`).join('');
+    }
+
+    function toggleRepo(fullName) {
+      if (selectedRepos.has(fullName)) {
+        selectedRepos.delete(fullName);
+        document.getElementById(`rc-${CSS.escape(fullName)}`).classList.remove('selected');
+      } else {
+        if (selectedRepos.size >= 5) return;
+        selectedRepos.add(fullName);
+        document.getElementById(`rc-${CSS.escape(fullName)}`).classList.add('selected');
+      }
+      updateCount();
+      document.getElementById('analyze-btn').disabled = selectedRepos.size === 0;
+    }
+
+    function updateCount() {
+      document.getElementById('bar-count').textContent = selectedRepos.size;
+    }
+
+    function startAnalysis() {
+      sessionStorage.setItem('analyzePayload', JSON.stringify({ username: currentUsername, repos: [...selectedRepos] }));
+      window.location.href = '/loading';
+    }
+
+    function setStatus(msg, type) {
+      const el = document.getElementById('status');
+      el.textContent = msg; el.className = `status-bar ${type}`;
+    }
+    function clearStatus() { document.getElementById('status').classList.add('hidden'); }
+
+    document.getElementById('username-input').addEventListener('keydown', e => { if (e.key === 'Enter') fetchUser(); });
+    initTheme();
+  </script>
+</body>
+</html>
