@@ -20,10 +20,11 @@ def _track_usage(usage, repo: str):
         return
     pt = getattr(usage, "prompt_token_count", 0) or 0
     ct = getattr(usage, "candidates_token_count", 0) or 0
+    total = getattr(usage, "total_token_count", 0) or (pt + ct)
     gemini_prompt_tokens_counter.add(pt, {"repo": repo})
     gemini_completion_tokens_counter.add(ct, {"repo": repo})
-    gemini_tokens_counter.add(pt + ct, {"repo": repo})
-    logger.info("gemini.tokens repo=%s prompt=%d completion=%d total=%d", repo, pt, ct, pt + ct)
+    gemini_tokens_counter.add(total, {"repo": repo})
+    logger.info("gemini.tokens repo=%s prompt=%d completion=%d total=%d", repo, pt, ct, total)
 
 
 def _call_gemini(prompt: str, repo: str) -> str:
