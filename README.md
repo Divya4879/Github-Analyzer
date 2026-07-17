@@ -79,6 +79,7 @@ GITHUB_TOKEN=ghp_yourtokenhere
 GEMINI_API_KEY=AIzaSy_yourkeyhere
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 OTEL_SERVICE_NAME=gitintel
+OTEL_ENABLED=true
 ```
 
 ### 3. Start SigNoz (observability backend)
@@ -167,7 +168,7 @@ Github-Analyzer/
 
 ## Deployment (Render)
 
-The app deploys to Render without SigNoz — OTel export is automatically skipped when no endpoint is reachable, so there are no errors.
+The app deploys to Render without SigNoz — set `OTEL_ENABLED=false` in Render's environment variables to disable OTel export cleanly.
 
 1. Push to GitHub
 2. Create a new Web Service on [render.com](https://render.com), connect your repo
@@ -190,4 +191,4 @@ The app deploys to Render without SigNoz — OTel export is automatically skippe
 - **File concurrency:** 10 parallel GitHub API workers per repo
 - **Gemini batching:** source files are batched at 800,000 characters per call to keep individual request latency predictable
 - **File cache:** fetched repo files are cached in memory for the session — use `DELETE /api/cache` to clear
-- **OTel graceful degradation:** if `OTEL_EXPORTER_OTLP_ENDPOINT` is unreachable, the app runs normally with no export errors
+- **OTel export:** controlled by `OTEL_ENABLED` env var (`true` by default). Set to `false` on deployments without SigNoz to disable export cleanly.
