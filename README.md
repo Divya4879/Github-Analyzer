@@ -1,21 +1,21 @@
 # GitIntel
 
-AI-powered GitHub profile analyzer. Enter a username, select up to 5 repos, and get a deep code assessment powered by Gemini 2.5 Flash — with full observability via OpenTelemetry and SigNoz.
+AI-powered GitHub profile analyzer. Enter a username, select up to 5 repos, and get a deep code assessment powered by Gemini 2.5 Flash; with full observability via OpenTelemetry and SigNoz.
 
 **Live demo:** [gitintel-2kh2.onrender.com](https://gitintel-2kh2.onrender.com)
 
-> Built for the [Agents of SigNoz Hackathon](https://signoz.io/hackathon) — blog track.
+> Built for the [Agents of SigNoz Hackathon](https://signoz.io/hackathon): Blog Track.
 
 ---
 
 ## Features
 
-- **AI code assessment** — scores each repo across 8 dimensions: code quality, architecture, security, test coverage, documentation, complexity, engineering practices, and overall
-- **Developer profile** — cross-repo analysis with maturity level (Junior → Staff), strengths, weaknesses, and growth areas
-- **Side-by-side comparison** — compare two GitHub profiles against each other
-- **Downloadable assessment card** — export your full results as a PNG with your GitHub profile picture and all scores
-- **Real-time streaming** — analysis progress streamed live via SSE, no page refresh needed
-- **Full observability** — traces, metrics, and logs via OpenTelemetry exported to SigNoz
+- **AI code assessment**: scores each repo across 8 dimensions: code quality, architecture, security, test coverage, documentation, complexity, engineering practices, and overall
+- **Developer profile**: cross-repo analysis with maturity level (Junior → Staff), strengths, weaknesses, and growth areas
+- **Side-by-side comparison**: compare two GitHub profiles against each other
+- **Downloadable assessment card**: export your full results as a PNG with your GitHub profile picture and all scores
+- **Real-time streaming**: analysis progress streamed live via SSE, no page refresh needed
+- **Full observability**: traces, metrics, and logs via OpenTelemetry exported to SigNoz
   - Gemini token usage tracked per repo (`gemini.tokens.total`, `gemini.tokens.prompt`, `gemini.tokens.completion`)
   - GitHub rate limit gauge updated on every API response (`github.ratelimit.remaining`)
   - Per-repo assessment duration histogram (`assessment.duration`)
@@ -41,8 +41,8 @@ AI-powered GitHub profile analyzer. Enter a username, select up to 5 repos, and 
 - Ubuntu 24.04 (or similar)
 - Python 3.12
 - Docker and Docker Compose v2
-- A **GitHub Personal Access Token** — [github.com/settings/tokens](https://github.com/settings/tokens) → Generate new token (classic) → enable `repo` and `read:user`
-- A **Gemini API key** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free tier works)
+- A **GitHub Personal Access Token**: [github.com/settings/tokens](https://github.com/settings/tokens) → Generate new token (classic) → enable `repo` and `read:user`
+- A **Gemini API key**: [aistudio.google.com/apikey](https://aistudio.google.com/apikey) (free tier works)
 
 Verify:
 ```bash
@@ -76,7 +76,7 @@ nano .env
 
 ```env
 GITHUB_TOKEN=ghp_yourtokenhere
-GEMINI_API_KEY=AIzaSy_yourkeyhere
+GEMINI_API_KEY=____yourkeyhere
 OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
 OTEL_SERVICE_NAME=gitintel
 OTEL_ENABLED=true
@@ -104,7 +104,7 @@ uvicorn main:app --reload
 
 App: `http://localhost:8000`
 
-Once you run an analysis, your `gitintel` service appears in SigNoz → Services tab with live traces, metrics, and logs.
+Once you run an analysis, your `gitintel` service appears in SigNoz -> Services tab with live traces, metrics, and logs.
 
 ---
 
@@ -112,12 +112,12 @@ Once you run an analysis, your `gitintel` service appears in SigNoz → Services
 
 | Signal | What you see |
 |---|---|
-| Traces | Full span tree per analysis: `github.get_user` → `github.get_all_files` → `gemini.assess_repo` → `gemini.generate` (per batch) → `gemini.developer_profile` |
+| Traces | Full span tree per analysis: `github.get_user` -> `github.get_all_files` -> `gemini.assess_repo` -> `gemini.generate` (per batch) -> `gemini.developer_profile` |
 | `gemini.tokens.total` | Token cost per repo — reveals which repos are expensive |
 | `github.ratelimit.remaining` | Live GitHub API headroom (5,000 req/hour limit) |
 | `assessment.duration` | p50/p95 latency histogram per repo |
 | `api.errors` | Error counts broken down by service (github / gemini) |
-| Logs | All structured logs correlated with trace IDs — click any log to jump to its trace |
+| Logs | All structured logs correlated with trace IDs -> click any log to jump to its trace |
 
 ---
 
@@ -145,7 +145,7 @@ Github-Analyzer/
 ├── main.py              # FastAPI app, all routes and SSE streaming
 ├── github_client.py     # GitHub API client, async file fetching, OTel spans
 ├── gemini_client.py     # Gemini AI client, batching logic, token tracking
-├── telemetry.py         # OTel setup — traces, metrics, logs, custom instruments
+├── telemetry.py         # OTel setup: traces, metrics, logs, custom instruments
 ├── requirements.txt
 ├── .env.example
 ├── Procfile             # For Render deployment
